@@ -1,4 +1,43 @@
-<!DOCTYPE html>
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -16,7 +55,7 @@
         }
 
         body {
-            background: linear-gradient(135deg, rgba(30, 30, 46, 0.8), rgba(10, 10, 35, 0.8)), url('https://via.placeholder.com/1920x1080?text=Anime+Background') no-repeat center/cover;
+            background: linear-gradient(135deg, rgba(30, 30, 46, 0.9), rgba(10, 10, 35, 0.9)), url('https://via.placeholder.com/1920x1080?text=Anime+Background') no-repeat center/cover;
             background-blend-mode: overlay;
             color: #e5e7eb;
             min-height: 100vh;
@@ -28,9 +67,37 @@
         }
 
         body.light-mode {
-            background: linear-gradient(135deg, rgba(245, 247, 250, 0.8), rgba(195, 207, 226, 0.8)), url('https://via.placeholder.com/1920x1080?text=Anime+Background') no-repeat center/cover;
+            background: linear-gradient(135deg, rgba(245, 247, 250, 0.9), rgba(195, 207, 226, 0.9)), url('https://via.placeholder.com/1920x1080?text=Anime+Background') no-repeat center/cover;
             background-blend-mode: overlay;
             color: #1e1e2e;
+        }
+
+        /* Particle Background Effect */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 50%;
+            animation: float 15s infinite linear;
+        }
+
+        body.light-mode .particle {
+            background: rgba(30, 64, 175, 0.4);
+        }
+
+        @keyframes float {
+            0% { transform: translateY(100vh) scale(0.5); opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { transform: translateY(-100vh) scale(1); opacity: 0; }
         }
 
         /* Dynamic Background Effect */
@@ -43,7 +110,7 @@
             background: radial-gradient(circle at center, rgba(59, 130, 246, 0.2) 0%, transparent 70%);
             opacity: 0.4;
             animation: bgPulse 10s ease-in-out infinite;
-            z-index: -1;
+            z-index: -2;
         }
 
         body.light-mode .bg-effect {
@@ -193,24 +260,22 @@
             filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.8));
             animation: logoGlow 2s ease-in-out infinite alternate, fadeInLogo 1.5s ease-in forwards 0.5s;
             opacity: 0;
+            display: block;
         }
 
         body.light-mode .top-logo {
             filter: drop-shadow(0 0 10px rgba(30, 64, 175, 0.6));
+            animation: logoGlowLight 2s ease-in-out infinite alternate, fadeInLogo 1.5s ease-in forwards 0.5s;
         }
 
         @keyframes logoGlow {
-            from { filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.8)); }
-            to { filter: drop-shadow(0 0 20px rgba(59, 130, 246, 1)); }
-        }
-
-        body.light-mode .top-logo {
-            animation: logoGlowLight 2s ease-in-out infinite alternate;
+            0% { filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.8)); }
+            100% { filter: drop-shadow(0 0 20px rgba(59, 130, 246, 1)); }
         }
 
         @keyframes logoGlowLight {
-            from { filter: drop-shadow(0 0 10px rgba(30, 64, 175, 0.6)); }
-            to { filter: drop-shadow(0 0 15px rgba(30, 64, 175, 0.8)); }
+            0% { filter: drop-shadow(0 0 10px rgba(30, 64, 175, 0.6)); }
+            100% { filter: drop-shadow(0 0 15px rgba(30, 64, 175, 0.8)); }
         }
 
         @keyframes fadeInLogo {
@@ -283,11 +348,10 @@
         /* Main Content */
         .container {
             text-align: center;
-            padding: 20px;
+            padding: 40px 20px;
             max-width: 85%;
             opacity: 0;
             animation: fadeIn 1.5s ease-in forwards 1.5s;
-            margin-bottom: 220px; /* Space for buttons */
         }
 
         @keyframes fadeIn {
@@ -297,12 +361,12 @@
 
         h1 {
             font-family: 'Playfair Display', serif;
-            font-size: 2.8rem;
+            font-size: 3rem;
             color: #93c5fd;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             text-shadow: 0 0 15px rgba(59, 130, 246, 0.8);
             animation: glow 2.5s ease-in-out infinite alternate;
-            letter-spacing: 1px;
+            letter-spacing: 1.5px;
         }
 
         body.light-mode h1 {
@@ -316,10 +380,10 @@
         }
 
         p {
-            font-size: 1.1rem;
-            line-height: 1.7;
+            font-size: 1.2rem;
+            line-height: 1.8;
             color: #d1d5db;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             animation: fadeInText 2s ease-in forwards 2s;
         }
 
@@ -404,17 +468,19 @@
 
         /* Buttons */
         .button-container {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 15px;
+            gap: 20px;
             width: 100%;
             max-width: 340px;
-            z-index: 100;
+            margin: 40px auto;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .button-container.visible {
+            opacity: 1;
         }
 
         .button {
@@ -424,7 +490,7 @@
             color: #fff;
             background: linear-gradient(135deg, #3b82f6, #1e40af);
             border-radius: 30px;
-            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.3), 0 2px 5px rgba(0, 0, 0, 0.3);
             position: relative;
             overflow: hidden;
             width: 100%;
@@ -433,19 +499,19 @@
             font-weight: 700;
             letter-spacing: 0.5px;
             animation: buttonPulse 3s ease-in-out infinite;
-            border: none;
+            border: 1px solid rgba(255, 255, 255, 0.2);
             transition: all 0.3s ease;
         }
 
         body.light-mode .button {
             background: linear-gradient(135deg, #2563eb, #1e3a8a);
-            box-shadow: 0 6px 20px rgba(30, 64, 175, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 25px rgba(30, 64, 175, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.3), 0 2px 5px rgba(0, 0, 0, 0.2);
         }
 
         @keyframes buttonPulse {
-            0% { transform: scale(1); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2); }
-            50% { transform: scale(1.05); box-shadow: 0 8px 25px rgba(59, 130, 246, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.4), 0 3px 6px rgba(0, 0, 0, 0.3); }
-            100% { transform: scale(1); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2); }
+            0% { transform: scale(1); box-shadow: 0 8px 25px rgba(59, 130, 246, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.3), 0 2px 5px rgba(0, 0, 0, 0.3); }
+            50% { transform: scale(1.05); box-shadow: 0 10px 30px rgba(59, 130, 246, 0.8), inset 0 0 25px rgba(255, 255, 255, 0.4), 0 3px 6px rgba(0, 0, 0, 0.4); }
+            100% { transform: scale(1); box-shadow: 0 8px 25px rgba(59, 130, 246, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.3), 0 2px 5px rgba(0, 0, 0, 0.3); }
         }
 
         body.light-mode .button {
@@ -453,9 +519,9 @@
         }
 
         @keyframes buttonPulseLight {
-            0% { transform: scale(1); box-shadow: 0 6px 20px rgba(30, 64, 175, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1); }
-            50% { transform: scale(1.05); box-shadow: 0 8px 25px rgba(30, 64, 175, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.4), 0 3px 6px rgba(0, 0, 0, 0.2); }
-            100% { transform: scale(1); box-shadow: 0 6px 20px rgba(30, 64, 175, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1); }
+            0% { transform: scale(1); box-shadow: 0 8px 25px rgba(30, 64, 175, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.3), 0 2px 5px rgba(0, 0, 0, 0.2); }
+            50% { transform: scale(1.05); box-shadow: 0 10px 30px rgba(30, 64, 175, 0.8), inset 0 0 25px rgba(255, 255, 255, 0.4), 0 3px 6px rgba(0, 0, 0, 0.3); }
+            100% { transform: scale(1); box-shadow: 0 8px 25px rgba(30, 64, 175, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.3), 0 2px 5px rgba(0, 0, 0, 0.2); }
         }
 
         .button::before {
@@ -475,49 +541,57 @@
 
         .button:hover {
             transform: translateY(-3px) scale(1.05);
-            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4), 0 3px 6px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 12px 35px rgba(59, 130, 246, 0.9), inset 0 0 25px rgba(255, 255, 255, 0.4), 0 4px 8px rgba(0, 0, 0, 0.4);
             animation: none;
         }
 
         body.light-mode .button:hover {
-            box-shadow: 0 8px 30px rgba(30, 64, 175, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4), 0 3px 6px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 12px 35px rgba(30, 64, 175, 0.9), inset 0 0 25px rgba(255, 255, 255, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3);
         }
 
         .button:active {
             transform: scale(0.98);
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.5), inset 0 0 10px rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 6px 15px rgba(59, 130, 246, 0.5), inset 0 0 15px rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
         .whatsapp {
             background: linear-gradient(135deg, #25D366, #16a34a);
+            box-shadow: 0 8px 25px rgba(37, 211, 102, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.3), 0 2px 5px rgba(0, 0, 0, 0.3);
         }
 
         .whatsapp:hover {
             background: linear-gradient(135deg, #16a34a, #15803d);
+            box-shadow: 0 12px 35px rgba(37, 211, 102, 0.9), inset 0 0 25px rgba(255, 255, 255, 0.4), 0 4px 8px rgba(0, 0, 0, 0.4);
         }
 
         body.light-mode .whatsapp {
             background: linear-gradient(135deg, #22c55e, #15803d);
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.3), 0 2px 5px rgba(0, 0, 0, 0.2);
         }
 
         body.light-mode .whatsapp:hover {
             background: linear-gradient(135deg, #16a34a, #14532d);
+            box-shadow: 0 12px 35px rgba(34, 197, 94, 0.9), inset 0 0 25px rgba(255, 255, 255, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3);
         }
 
         .github {
             background: linear-gradient(135deg, #333, #1c2526);
+            box-shadow: 0 8px 25px rgba(51, 51, 51, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.3), 0 2px 5px rgba(0, 0, 0, 0.3);
         }
 
         .github:hover {
             background: linear-gradient(135deg, #444, #2a2a2a);
+            box-shadow: 0 12px 35px rgba(51, 51, 51, 0.9), inset 0 0 25px rgba(255, 255, 255, 0.4), 0 4px 8px rgba(0, 0, 0, 0.4);
         }
 
         body.light-mode .github {
             background: linear-gradient(135deg, #4b5563, #374151);
+            box-shadow: 0 8px 25px rgba(75, 85, 99, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.3), 0 2px 5px rgba(0, 0, 0, 0.2);
         }
 
         body.light-mode .github:hover {
             background: linear-gradient(135deg, #6b7280, #4b5563);
+            box-shadow: 0 12px 35px rgba(75, 85, 99, 0.9), inset 0 0 25px rgba(255, 255, 255, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3);
         }
 
         /* Confirmation Dialog */
@@ -622,4 +696,194 @@
         .dialog-button.no:hover {
             background: linear-gradient(135deg, #374151, #2d3748);
             transform: scale(1.05);
-            box-shadow: 0 4px 15p
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        body.light-mode .dialog-button.no:hover {
+            background: linear-gradient(135deg, #6b7280, #4b5563);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Mobile Optimization */
+        @media (max-width: 600px) {
+            .top-logo {
+                width: 150px;
+            }
+            .theme-toggle {
+                top: 15px;
+                right: 15px;
+                width: 50px;
+                height: 25px;
+                padding: 5px 10px;
+                font-size: 0.8rem;
+            }
+            .theme-toggle i {
+                font-size: 0.9rem;
+            }
+            .theme-toggle .sun {
+                transform: translateX(25px);
+            }
+            body.light-mode .theme-toggle .moon {
+                transform: translateX(-25px);
+            }
+            body.light-mode .theme-toggle .sun {
+                transform: translateX(0);
+            }
+            h1 {
+                font-size: 2.2rem;
+            }
+            p {
+                font-size: 0.95rem;
+            }
+            .container {
+                padding: 30px 15px;
+            }
+            .button-container {
+                max-width: 300px;
+                margin: 30px auto;
+            }
+            .button {
+                padding: 14px 25px;
+                font-size: 0.95rem;
+            }
+            .dialog-box {
+                padding: 15px;
+            }
+            .dialog-box p {
+                font-size: 0.9rem;
+            }
+            .dialog-button {
+                padding: 6px 15px;
+                font-size: 0.8rem;
+            }
+            .button-ring {
+                width: 50px;
+                height: 50px;
+            }
+            .profile-img {
+                width: 120px;
+                height: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Effects -->
+    <div class="bg-effect"></div>
+    <div class="particles" id="particles"></div>
+
+    <!-- Page Loading Animation -->
+    <div id="loader">
+        <div class="ring"></div>
+    </div>
+
+    <!-- Button Loading Animation -->
+    <div id="buttonLoader">
+        <div class="button-ring"></div>
+    </div>
+
+    <!-- Confirmation Dialog -->
+    <div id="confirmDialog">
+        <div class="dialog-box">
+            <p id="dialogMessage">Step into my [platform] dojo?</p>
+            <div class="dialog-buttons">
+                <button class="dialog-button yes" onclick="confirmLink()">Yes</button>
+                <button class="dialog-button no" onclick="closeDialog()">No</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Logo -->
+    <img src="https://files.catbox.moe/eojuys.jpg" alt="xh_clinton Logo" class="top-logo">
+
+    <!-- Theme Toggle Switch -->
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <i class="fas fa-moon moon"></i>
+        <i class="fas fa-sun sun"></i>
+    </button>
+
+    <!-- Main Content -->
+    <div class="container">
+        <img src="https://via.placeholder.com/150?text=Dev" alt="xh_clinton Profile" class="profile-img">
+        <h1>xh_clinton's Digital Dojo</h1>
+        <p>I’m <span class="highlight">xh_clinton</span>, a JavaScript master-in-training, crafting cutting-edge web experiences with precision and passion.</p>
+        <p>Inspired by the epic worlds of <span class="highlight">Demon Slayer</span> and <span class="highlight">Solo Leveling</span>, I channel their intensity into my code, building digital dojos that dominate the web.</p>
+    </div>
+
+    <!-- Buttons -->
+    <div class="button-container" id="buttonContainer">
+        <a href="#" class="button whatsapp" onclick="showButtonLoader('https://wa.me/254735342808')">Connect on WhatsApp</a>
+        <a href="#" class="button github" onclick="showButtonLoader('https://github.com/xhclintohn')">Discover my GitHub</a>
+    </div>
+
+    <script>
+        // Particle Effect
+        function createParticles() {
+            const particleContainer = document.getElementById('particles');
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                particle.style.width = `${Math.random() * 5 + 2}px`;
+                particle.style.height = particle.style.width;
+                particle.style.left = `${Math.random() * 100}vw`;
+                particle.style.animationDuration = `${Math.random() * 10 + 5}s`;
+                particle.style.animationDelay = `${Math.random() * 5}s`;
+                particleContainer.appendChild(particle);
+            }
+        }
+
+        // Hide page loader after 1.5 seconds
+        window.onload = function() {
+            createParticles();
+            setTimeout(() => {
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loader').style.display = 'none';
+                }, 500);
+            }, 1500);
+        };
+
+        // Show buttons after scrolling past content
+        window.addEventListener('scroll', () => {
+            const container = document.querySelector('.container');
+            const buttonContainer = document.getElementById('buttonContainer');
+            const containerBottom = container.getBoundingClientRect().bottom;
+
+            if (containerBottom <= window.innerHeight) {
+                buttonContainer.classList.add('visible');
+            } else {
+                buttonContainer.classList.remove('visible');
+            }
+        });
+
+        let targetLink = '';
+
+        function showButtonLoader(url) {
+            targetLink = url;
+            document.getElementById('buttonLoader').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('buttonLoader').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('buttonLoader').style.display = 'none';
+                    document.getElementById('buttonLoader').style.opacity = '1';
+                    document.getElementById('confirmDialog').style.display = 'flex';
+                }, 500);
+            }, 1500);
+        }
+
+        function confirmLink() {
+            document.getElementById('confirmDialog').style.display = 'none';
+            window.open(targetLink, '_blank');
+        }
+
+        function closeDialog() {
+            document.getElementById('confirmDialog').style.display = 'none';
+        }
+
+        // Dark/Light Mode Toggle
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+        }
+    </script>
+</body>
+</html>
